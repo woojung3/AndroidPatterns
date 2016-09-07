@@ -1,14 +1,14 @@
 #! /usr/bin/env python
 
-from __future__ import division
-
 from collections import Counter
 from decimal import Decimal
 from itertools import combinations
 from math import ceil, sqrt
 
+# disable matplotlib or numpy to use pypy
+import matplotlib.pyplot as plt
 
-# get_points and gen_points_dic to calculate ps
+# get_points and gen_points_dic to calculate ps (that is, calculate visibility for every points)
 def get_points(point1, point2):
     res_points = set()
 
@@ -35,7 +35,7 @@ def get_points(point1, point2):
         ys = range(point2[1] + 1, point1[1])
 
     for point in [(x_cord, y_cord) for x_cord in xs for y_cord in ys]:
-        if point[1] - point1[1] == (point[0] - point1[0]) * ((point2[1] - point1[1]) / (point2[0] - point1[0])):
+        if point[1] - point1[1] == (point[0] - point1[0]) * ((point2[1] - point1[1]) / float(point2[0] - point1[0])):
             res_points.add(point)
 
     return res_points
@@ -61,35 +61,32 @@ def graph_gen(in_points):
         else:
             graph[vertice[1]] = 1
 
-    min_val = min(graph.itervalues())
+    # generating ps_min
+    ps_mins = []
+    for curr_point, curr_value in graph.iteritems():
+        min_grads = []
+        for i in in_points:
+            if i == curr_point:
+                continue
+            else:
+                v_x = i[0] - curr_point[0]
+                v_y = i[1] - curr_point[1]
+                dx = round(1/sqrt(v_x**2 + v_y**2)*(v_x), 13)
+                dy = round(1/sqrt(v_x**2 + v_y**2)*(v_y), 13)
+                grad = (dx, dy)
+            min_grads.append(grad)
+        sorted_grad = [y_cord for x_cord, y_cord in Counter(min_grads).most_common()]
+        init = 1
+        ps_min = []
+        for i in sorted_grad:
+            ps_min = ps_min + [init] * i
+            init += 1
+        ps_min.reverse()
+        ps_mins.append(ps_min)
+    ps_min = [min(x) for x in zip(*ps_mins)]
+
+    # generating ps_max
     max_val = max(graph.itervalues())
-
-    min_points = []
-    for point, value in graph.iteritems():
-        if value == min_val:
-            min_points.append(point)
-    min_grads = []
-    for i in in_points:
-        if i == min_points[0]:
-            continue
-        if i[0] == min_points[0][0]:
-            grad = float("inf")
-        else:
-            grad = (i[1] - min_points[0][1]) / (i[0] - min_points[0][0])
-        min_grads.append(grad)
-    sorted_grad = [y_cord for x_cord, y_cord in Counter(min_grads).most_common()]
-
-    init = 1
-    ps_min = []
-    for i in sorted_grad:
-        ps_min = ps_min + [init] * i
-        init += 1
-    ps_min.reverse()
-
-    min_decreased = range(min_val, 0, -1)
-    min_decreased = min_decreased + [1] * (len(in_points) - len(min_decreased) - 1)
-    ps_min = [max(x_cord) for x_cord in zip(ps_min, min_decreased)]
-
     max_increased = range(max_val, 0, -1)
     max_increased = [max_val] * (len(in_points) - len(max_increased) - 1) + max_increased
     ps_max = max_increased
@@ -108,13 +105,22 @@ def graph_gen(in_points):
         res_max.append(init_max)
     upper_bound = Decimal(len(in_points) * sum(res_max[2:]))
 
-    print(sqrt(len(in_points)), "{:.2E}".format(lower_bound), "{:.2E}".format(upper_bound))
+    return int(lower_bound), int(upper_bound), "{:.2E}".format(lower_bound), "{:.2E}".format(upper_bound)
 
 
 if __name__ == "__main__":
-    for num_points in [x ** 2 for x in range(3, 25)]:
+    results = []
+    grid_width = range(3, 26)
+    for num_points in [x ** 2 for x in grid_width]:
         n = int(ceil(sqrt(num_points)))
         points = [(x, y) for x in range(n) for y in range(n)]
 
-        graph_gen(points)
+        res = graph_gen(points)
+        print num_points, res[2], res[3]
+        results.append([res[0], res[1]])
+
+    # plt.semilogy([3, 4], [389112, 4350069823024], 'r', grid_width, [i[0] for i in results], 'b--', grid_width, [i[1] for i in results], 'b--')
+    # plt.grid(True)
+    # plt.savefig("res{v1}-{v2}.png".format(v1=grid_width[0], v2=grid_width[-1]))
+
     print("End")
